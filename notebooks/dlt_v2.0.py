@@ -3,8 +3,8 @@ import dlt
 
 def create_table_from_path(esn, input_path, esn_checkpoint_path):
   @dlt.table(
-		name=esn,
-		comment=f"table for {esn}"
+		name=esn, # table name
+		comment=f"table for {esn}" # comment that appears on the dlt pipeline ui
 	)
   def build_table_from_json():
     df = (
@@ -71,8 +71,6 @@ source_table = "ngca"
 def build_silver_layer():
   source_delta_df = dlt.read_stream(source_table)
   df = (source_delta_df.selectExpr(
-    "'ESN' as fEsn",
-    "'Global Equipment ID' as fGEId",    
     "case when componentSerialNumber is not null then componentSerialNumber else 'Blank' end as vEsn",
     "case when telematicsDeviceId is not null then telematicsDeviceId else 'Blank' end as vAvl",
     "case when frm_gen_ts is not null then substring(regexp_replace(frm_gen_ts, r'(T)', ' '), 0, length(frm_gen_ts)-5) else '2001-01-01 01:01:01' end as vDevTimeStamp",
@@ -89,45 +87,17 @@ def build_silver_layer():
   ))
   
   transformed_df = df.selectExpr(
-    "fEsn",
-    "fGEId",
-    "vEsn",
-    "vAvl",
-    "vDevTimeStamp",
-    "vSerTimeStamp",
-    "vLCommunicationTimeStamp",
-    "vtelematicsPName",
-    "vTotalEngHrs",
-    "dTotalEngHrs",
-    "vTotalFuelUsed",
-    "dTotalFuelUsed",
-    "vDataSourProviderName",
-    "vIn_Service_Location",
-    "case when samples.convertedDeviceParameters is not null then samples.convertedDeviceParameters.latitude else 'Blank' end as vLatitude",
-    "case when samples.convertedDeviceParameters is not null then samples.convertedDeviceParameters.longitude else 'Blank' end as vLongitude"
+    "vEsn as fGEId",
+    "vAvl as fAvl",
+    "vDevTimeStamp as fDeviceTimestamp",
+    "to_timestamp(vDevTimeStamp, 'yyyy-MM-dd HH:mm:ss') as fDeviceTimestamp_modified",
+    "vSerTimeStamp as fServerTimestamp",
+    "vLCommunicationTimeStamp as fLCommunication",
+    "vDataSourProviderName as fDSPName",
+    "dTotalEngHrs as fTEHours",
+    "dTotalFuelUsed as fTFUsed",
+    "vIn_Service_Location as fIn_Service_Location",
+    "case when samples.convertedDeviceParameters is not null then samples.convertedDeviceParameters.latitude else 'Blank' end as fLatitude",
+    "case when samples.convertedDeviceParameters is not null then samples.convertedDeviceParameters.longitude else 'Blank' end as fLongitude"
   )
   return transformed_df
-
-# COMMAND ----------
-
-# df = spark.createDataFrame([
-#     (1, 4., 'GFG1'),
-#     (2, 8., 'GFG2'),
-#     (3, 5., 'GFG3')
-# ], schema=['a_b','a(b);','c'])
-# display(df)
-
-# COMMAND ----------
-
-# import pyspark.sql.functions as F
-# import re
-
-# def get_clean_column_names_list(columns):
-#   clean_columns = [F.col(v).alias(re.sub(r"[^0-9a-zA-Z_]",'_',v+'_'+str(k)+'_modified')) if re.search("[^0-9a-zA-Z_]", v) else v for k,v in enumerate(columns)]
-#   return clean_columns
-
-# clean_columns = get_clean_column_names_list(df.columns)
-
-# df = df.select(clean_columns)
-
-# df.printSchema()
